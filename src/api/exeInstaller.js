@@ -6,16 +6,16 @@ export class InstallerDownloadError extends Error {
   }
 }
 
-const DEFAULT_INSTALLER_FILENAME = 'CorgiNite_Bundle.exe'
+const DEFAULT_SCRIPT_FILENAME = 'CorgiNite_Bundle.ps1'
 
-const createFallbackExeFilename = (name) => {
+const createFallbackScriptFilename = (name) => {
   const safeName = String(name || '')
     .trim()
     .replace(/[^A-Za-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
     .slice(0, 80)
 
-  return `${safeName || 'CorgiNite_Bundle'}.exe`
+  return `${safeName || 'CorgiNite_Bundle'}.ps1`
 }
 
 export const parseContentDispositionFilename = (contentDisposition) => {
@@ -71,12 +71,12 @@ const downloadBlob = ({
     link.click()
     link.remove()
   } catch (error) {
-    logger.error('Failed to start executable installer download', {
+    logger.error('Failed to start installer script download', {
       error,
       filename,
     })
     throw new InstallerDownloadError(
-      'The installer was created, but the browser could not start the download.',
+      'The script was created, but the browser could not start the download.',
     )
   } finally {
     if (objectUrl) {
@@ -85,7 +85,7 @@ const downloadBlob = ({
   }
 }
 
-export const requestExeInstallerDownload = async ({
+export const requestInstallerScriptDownload = async ({
   apps,
   name,
   options,
@@ -97,7 +97,7 @@ export const requestExeInstallerDownload = async ({
 }) => {
   if (!fetchImpl) {
     throw new InstallerDownloadError(
-      'Installer builder is unavailable in this browser.',
+      'Installer script builder is unavailable in this browser.',
     )
   }
 
@@ -119,14 +119,14 @@ export const requestExeInstallerDownload = async ({
   } catch (error) {
     logger.error('Installer API request failed', { error, endpoint })
     throw new InstallerDownloadError(
-      'Could not connect to the installer builder. Start the web server and try again.',
+      'Could not connect to the installer script builder. Start the web server and try again.',
     )
   }
 
   if (!response.ok) {
     const message = await readErrorMessage(response)
     throw new InstallerDownloadError(
-      message || 'The installer builder could not create the EXE.',
+      message || 'The installer script builder could not create the script.',
       response.status,
     )
   }
@@ -135,9 +135,8 @@ export const requestExeInstallerDownload = async ({
   const responseFilename = parseContentDispositionFilename(
     response.headers?.get?.('content-disposition'),
   )
-  const buildMode = response.headers?.get?.('x-corginite-mode') || ''
   const filename =
-    responseFilename || createFallbackExeFilename(name) || DEFAULT_INSTALLER_FILENAME
+    responseFilename || createFallbackScriptFilename(name) || DEFAULT_SCRIPT_FILENAME
 
   downloadBlob({
     blob,
@@ -149,9 +148,8 @@ export const requestExeInstallerDownload = async ({
 
   return {
     filename,
-    message:
-      buildMode === 'preview'
-        ? `Downloaded preview ${filename}. Vercel serves a demo installer here.`
-        : `Downloaded ${filename}. Run it to install the selected apps.`,
+    message: `Downloaded ${filename}. Open PowerShell as Administrator and run the script to install the selected apps.`,
   }
 }
+
+export const requestExeInstallerDownload = requestInstallerScriptDownload

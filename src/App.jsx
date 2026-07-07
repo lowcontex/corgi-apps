@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   InstallerDownloadError,
-  requestExeInstallerDownload,
+  requestInstallerScriptDownload,
 } from './api/exeInstaller'
 import './App.css'
 
@@ -755,9 +755,9 @@ const categoryOrder = [
 
 const buildSteps = [
   'Validate selection',
-  'Download offline installers',
-  'Embed installer files',
-  'Compile offline bundle',
+  'Resolve package IDs',
+  'Generate PowerShell script',
+  'Embed admin bootstrap',
   'Prepare browser download',
   'Start download',
 ]
@@ -853,7 +853,7 @@ const flowSteps = [
     id: 'output',
     eyebrow: 'Step 2',
     title: 'Set output',
-    description: 'Confirm installer name and run behavior.',
+    description: 'Confirm script name and run behavior.',
   },
   {
     id: 'review',
@@ -985,7 +985,7 @@ function App() {
     }
 
     if (activeStepId === 'output' && !installerName.trim()) {
-      setErrorMessage('Enter an installer name before reviewing the download.')
+      setErrorMessage('Enter a script name before reviewing the download.')
       return
     }
 
@@ -1034,7 +1034,7 @@ function App() {
 
     if (!installerName.trim()) {
       setActiveStepId('output')
-      setErrorMessage('Enter an installer name before downloading.')
+      setErrorMessage('Enter a script name before downloading.')
       return
     }
 
@@ -1052,21 +1052,21 @@ function App() {
       setBuildStep(1)
       setBuildProgress({
         phase: 'resolving',
-        message: 'Sending selected apps to the EXE builder.',
+        message: 'Sending selected apps to the script generator.',
       })
 
-      const downloadResult = await requestExeInstallerDownload({
+      const downloadResult = await requestInstallerScriptDownload({
         apps: selectedApps,
         name: installerName.trim(),
         options,
       })
 
-      setBuildId(`CN-${Date.now().toString().slice(-6)}`)
+      setBuildId(`PS-${Date.now().toString().slice(-6)}`)
       setBuildOutputPath(downloadResult.filename)
       setBuildStep(buildSteps.length)
       setBuildProgress({
         phase: 'complete',
-        message: 'Windows installer ready.',
+        message: 'PowerShell bootstrap script ready.',
       })
       setBuildStatus('ready')
       setDownloadMessage(downloadResult.message)
@@ -1075,7 +1075,7 @@ function App() {
         error instanceof InstallerDownloadError || error instanceof Error
           ? error.message
           : 'Unknown download failure'
-      console.error('Installer download failed', {
+      console.error('Script download failed', {
         error,
         appCount: selectedCount,
         installerName: installerName.trim(),
@@ -1101,7 +1101,7 @@ function App() {
   const isReady = buildStatus === 'ready'
   const buildLabel =
     buildStatus === 'building'
-      ? 'Preparing'
+      ? 'Generating'
       : buildStatus === 'ready'
         ? 'Ready'
         : 'Idle'
@@ -1123,7 +1123,7 @@ function App() {
   const primaryActionLabel = isLastStep
     ? isBuilding
       ? 'Preparing download'
-      : 'Download EXE'
+      : 'Download script'
     : currentStepIndex === 0
       ? 'Next: Output'
       : 'Next: Review'
@@ -1133,10 +1133,10 @@ function App() {
       <header className="app-header">
         <div className="header-copy">
           <span className="eyebrow">CorgiNite web installer</span>
-          <h1 className="page-title">Build a clean Windows installer in three steps</h1>
+          <h1 className="page-title">Build a clean Windows install script in three steps</h1>
           <p className="page-lead">
-            Choose apps, set the output, and generate one offline EXE bundle with a
-            clear summary at every step.
+            Choose apps, set the output, and generate one PowerShell bootstrap script
+            with a clear summary at every step.
           </p>
         </div>
         <div className="header-card">
@@ -1317,7 +1317,7 @@ function App() {
             <div className="step-content output-step">
               <div className="field">
                 <label className="field-label" htmlFor="installer-name">
-                  Installer name
+                  Script name
                 </label>
                 <input
                   id="installer-name"
@@ -1422,7 +1422,7 @@ function App() {
                   </div>
                   <div>
                     <dt>Install source</dt>
-                    <dd>Offline EXE bundle</dd>
+                    <dd>PowerShell bootstrap script</dd>
                   </div>
                   <div>
                     <dt>Silent mode</dt>
@@ -1470,10 +1470,10 @@ function App() {
                 <div className="subsection-heading">
                   <div>
                     <h3 id="build-title" className="subsection-title">
-                      Download status
+                      Script status
                     </h3>
                     <p className="subsection-note">
-                      The generated .exe downloads automatically when ready.
+                      The generated .ps1 downloads automatically when ready.
                     </p>
                   </div>
                   <span className={`status status-${buildStatus}`}>
@@ -1513,7 +1513,7 @@ function App() {
                 </div>
                 <div className="build-meta">
                   <div>
-                    <span className="meta-label">Download ID</span>
+                    <span className="meta-label">Script ID</span>
                     <span className="meta-value">{buildId || 'Pending'}</span>
                   </div>
                   <div>
@@ -1523,7 +1523,7 @@ function App() {
                 </div>
                 {isReady ? (
                   <div className="success-row">
-                    <span className="success-pill">Installer ready</span>
+                    <span className="success-pill">Script ready</span>
                     {buildOutputPath ? (
                       <span className="output-path" title={buildOutputPath}>
                         {downloadMessage || `Prepared: ${buildOutputPath}`}
@@ -1564,7 +1564,7 @@ function App() {
           <div className="summary-header">
             <div>
               <h2 className="panel-title">Current bundle</h2>
-              <p className="panel-subtitle">A compact summary of what will ship.</p>
+              <p className="panel-subtitle">A compact summary of the install script.</p>
             </div>
             <span className={`status status-${buildStatus}`}>{buildLabel}</span>
           </div>
@@ -1627,7 +1627,7 @@ function App() {
 
           {!canBuild ? (
             <p className="notice">
-              Add at least one app and keep the installer name filled in before
+              Add at least one app and keep the script name filled in before
               downloading.
             </p>
           ) : null}
@@ -1640,13 +1640,13 @@ function App() {
           role="dialog"
           aria-modal="true"
           aria-live="polite"
-          aria-label="Installer download in progress"
+          aria-label="Installer script download in progress"
         >
           <div className="build-dialog" style={{ '--progress': `${progressPercent}%` }}>
             <div className="build-header">
               <BuildMark />
               <div className="build-copy">
-                <p className="build-title">Building Windows installer</p>
+                <p className="build-title">Generating PowerShell script</p>
                 <p className="build-subtitle">{buildProgress?.message || activeStep}</p>
                 <p className="build-progress-meta">
                   {progressPercent}% complete

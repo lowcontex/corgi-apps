@@ -1,7 +1,7 @@
 # CorgiNite Installer Builder UI
 
-UI-only React prototype for selecting apps and compiling them into one installer
-bundle. The build flow is simulated with a mocked API and staged progress.
+UI-only React prototype for selecting apps and generating one PowerShell
+bootstrap script. The build flow is simulated with a staged progress UI.
 
 ## Features
 
@@ -20,13 +20,15 @@ npm run dev
 ## Deploying to Vercel
 
 The Vercel deployment uses the static React build plus a preview `/api/build-installer`
-function. That keeps the UI and download flow working in the browser, but the
-real NSIS/winget installer pipeline still runs in the local desktop/server setup.
+function. That keeps the UI and download flow working in the browser and returns
+the same PowerShell bootstrap script used locally.
 
-For the full installer workflow, use the local `npm run dev` server or the
-Electron desktop app. Vercel is best for sharing the polished UI and demo build.
+For the full install workflow, run the downloaded `.ps1` as Administrator on a
+Windows machine with `winget` available. If `winget` is missing, the script tries
+to bootstrap Chocolatey as a fallback dependency manager and explains the next step.
+Vercel is best for sharing the polished UI and script download.
 
 ## Notes
 
-This prototype does not compile real installers. The build flow is stubbed in
-the mock API module inside the src folder.
+This prototype does not compile real installers. The build flow generates a
+bootstrap script that installs the selected apps from Winget package IDs.

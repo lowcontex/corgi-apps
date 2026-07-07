@@ -1,7 +1,4 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
 import { Readable, Writable } from 'node:stream'
 import test from 'node:test'
 import { handleBuildInstallerRequest } from './installerApi.mjs'
@@ -34,51 +31,31 @@ const createResponseRecorder = () => {
   return response
 }
 
-test('streams a generated exe with download headers', async () => {
-  const tempDir = await mkdtemp(path.join(tmpdir(), 'corginite-api-test-'))
-  const exePath = path.join(tempDir, 'CorgiNite_Bundle.exe')
-  await writeFile(exePath, Buffer.from('MZ fake executable bytes'))
+test('streams a generated ps1 script with download headers', async () => {
+  const response = createResponseRecorder()
 
-  try {
-    const response = createResponseRecorder()
-    let receivedPayload = null
+  await handleBuildInstallerRequest(createJsonRequest({
+    apps: ['chrome', '7zip'],
+    name: 'CorgiNite Bundle',
+    options: { arch: 'x64', silentInstall: true },
+  }), response, {
+    logger: {
+      error: () => assert.fail('expected no error log'),
+    },
+  })
 
-    await handleBuildInstallerRequest(createJsonRequest({
-      apps: ['chrome', '7zip'],
-      name: 'CorgiNite Bundle',
-      options: { arch: 'x64', silentInstall: true },
-    }), response, {
-      buildPipeline: async (payload) => {
-        receivedPayload = payload
-        return { outputPath: exePath }
-      },
-      logger: {
-        error: () => assert.fail('expected no error log'),
-      },
-    })
+  const body = response.getBody().toString()
 
-    assert.deepEqual(receivedPayload, {
-      apps: ['chrome', '7zip'],
-      name: 'CorgiNite Bundle',
-      options: {
-        arch: 'x64',
-        silentInstall: true,
-        restorePoint: false,
-      },
-    })
-    assert.equal(response.statusCode, 200)
-    assert.equal(
-      response.headers['Content-Type'],
-      'application/vnd.microsoft.portable-executable',
-    )
-    assert.equal(
-      response.headers['Content-Disposition'],
-      'attachment; filename="CorgiNite_Bundle.exe"',
-    )
-    assert.equal(response.getBody().toString(), 'MZ fake executable bytes')
-  } finally {
-    await rm(tempDir, { recursive: true, force: true })
-  }
+  assert.equal(response.statusCode, 200)
+  assert.equal(response.headers['Content-Type'], 'text/x-powershell;charset=utf-8')
+  assert.equal(
+    response.headers['Content-Disposition'],
+    'attachment; filename="CorgiNite_Bundle.ps1"',
+  )
+  assert.match(body, /CorgiNite installer bootstrap/)
+  assert.match(body, /& winget @arguments/)
+  assert.match(body, /Google.Chrome/)
+  assert.match(body, /7zip\.7zip/)
 })
 
 test('returns validation errors as JSON', async () => {

@@ -3,27 +3,27 @@ import test from 'node:test'
 import {
   InstallerDownloadError,
   parseContentDispositionFilename,
-  requestExeInstallerDownload,
+  requestInstallerScriptDownload,
 } from './exeInstaller.js'
 
-test('parses executable filename from content disposition header', () => {
+test('parses script filename from content disposition header', () => {
   assert.equal(
-    parseContentDispositionFilename('attachment; filename="CorgiNite_Bundle.exe"'),
-    'CorgiNite_Bundle.exe',
+    parseContentDispositionFilename('attachment; filename="CorgiNite_Bundle.ps1"'),
+    'CorgiNite_Bundle.ps1',
   )
 })
 
-test('requests an exe and starts the browser download', async () => {
+test('requests a script and starts the browser download', async () => {
   let requestUrl = ''
   let requestBody = null
   let clickedDownload = ''
   let clickedHref = ''
   let revokedUrl = ''
   const responseBlob = new Blob(['MZ fake executable bytes'], {
-    type: 'application/vnd.microsoft.portable-executable',
+    type: 'text/x-powershell',
   })
 
-  const result = await requestExeInstallerDownload({
+  const result = await requestInstallerScriptDownload({
     apps: [
       { id: 'chrome', name: 'Google Chrome' },
       { id: '7zip', name: '7-Zip' },
@@ -41,7 +41,7 @@ test('requests an exe and starts the browser download', async () => {
         headers: {
           get: (key) =>
             key.toLowerCase() === 'content-disposition'
-              ? 'attachment; filename="CorgiNite_Bundle.exe"'
+              ? 'attachment; filename="CorgiNite_Bundle.ps1"'
               : null,
         },
         blob: async () => responseBlob,
@@ -83,20 +83,20 @@ test('requests an exe and starts the browser download', async () => {
       silentInstall: true,
     },
   })
-  assert.equal(clickedDownload, 'CorgiNite_Bundle.exe')
+  assert.equal(clickedDownload, 'CorgiNite_Bundle.ps1')
   assert.equal(clickedHref, 'blob:corginite-exe')
   assert.equal(revokedUrl, 'blob:corginite-exe')
   assert.deepEqual(result, {
-    filename: 'CorgiNite_Bundle.exe',
+    filename: 'CorgiNite_Bundle.ps1',
     message:
-      'Downloaded CorgiNite_Bundle.exe. Run it to install the selected apps.',
+      'Downloaded CorgiNite_Bundle.ps1. Open PowerShell as Administrator and run the script to install the selected apps.',
   })
 })
 
-test('throws a user-facing error when the exe build fails', async () => {
+test('throws a user-facing error when the script build fails', async () => {
   await assert.rejects(
     () =>
-      requestExeInstallerDownload({
+      requestInstallerScriptDownload({
         apps: [{ id: 'chrome', name: 'Google Chrome' }],
         name: 'CorgiNite Bundle',
         options: {},
@@ -104,17 +104,13 @@ test('throws a user-facing error when the exe build fails', async () => {
           ok: false,
           status: 503,
           json: async () => ({
-            error:
-              'Installer builder is missing NSIS. Install NSIS and try again.',
+            error: 'The installer script could not be created.',
           }),
         }),
       }),
     (error) => {
       assert.equal(error instanceof InstallerDownloadError, true)
-      assert.equal(
-        error.message,
-        'Installer builder is missing NSIS. Install NSIS and try again.',
-      )
+      assert.equal(error.message, 'The installer script could not be created.')
       return true
     },
   )

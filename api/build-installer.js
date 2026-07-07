@@ -1,8 +1,7 @@
-import { createExeFilename, normalizeBuildPayload } from '../server/installerPayload.mjs'
+import { buildInstallerScript, createScriptFilename } from '../server/installerScript.mjs'
+import { PayloadValidationError, normalizeBuildPayload } from '../server/installerPayload.mjs'
 
-const EXE_MIME_TYPE = 'application/vnd.microsoft.portable-executable'
-const DEMO_MODE_HEADER = 'x-corginite-mode'
-const TEXT_ENCODER = new TextEncoder()
+const SCRIPT_MIME_TYPE = 'text/x-powershell;charset=utf-8'
 
 const writeJson = (status, payload) =>
   new Response(JSON.stringify(payload), {
@@ -13,23 +12,6 @@ const writeJson = (status, payload) =>
     },
   })
 
-const createPreviewInstallerBytes = (payload) => {
-  const lines = [
-    'CorgiNite preview installer',
-    '',
-    `Installer: ${payload.name}`,
-    `Applications: ${payload.apps.length}`,
-    `Architecture: ${payload.options.arch}`,
-    `Silent mode: ${payload.options.silentInstall ? 'Enabled' : 'Disabled'}`,
-    `Restore point: ${payload.options.restorePoint ? 'Enabled' : 'Disabled'}`,
-    '',
-    'This is a Vercel preview build.',
-    'The real NSIS/winget build runs in the desktop/server environment.',
-  ]
-
-  return TEXT_ENCODER.encode(lines.join('\r\n'))
-}
-
 export default {
   async fetch(request) {
     if (request.method !== 'POST') {
@@ -39,17 +21,15 @@ export default {
     try {
       const rawPayload = await request.json()
       const payload = normalizeBuildPayload(rawPayload)
-      const filename = createExeFilename(payload.name)
-      const body = createPreviewInstallerBytes(payload)
+      const script = buildInstallerScript({ payload })
+      const filename = createScriptFilename(payload.name)
 
-      return new Response(body, {
+      return new Response(script, {
         status: 200,
         headers: {
-          'Content-Type': EXE_MIME_TYPE,
+          'Content-Type': SCRIPT_MIME_TYPE,
           'Content-Disposition': `attachment; filename="${filename}"`,
-          'Content-Length': String(body.byteLength),
           'Cache-Control': 'no-store',
-          [DEMO_MODE_HEADER]: 'preview',
         },
       })
     } catch (error) {
@@ -57,12 +37,12 @@ export default {
         return writeJson(400, { error: 'Installer request body must be JSON.' })
       }
 
-      if (error?.name === 'PayloadValidationError') {
+      if (error instanceof PayloadValidationError) {
         return writeJson(error.statusCode || 400, { error: error.message })
       }
 
       return writeJson(503, {
-        error: 'The installer builder could not create the EXE.',
+        error: 'The installer script could not be created.',
       })
     }
   },
