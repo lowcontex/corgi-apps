@@ -135,6 +135,7 @@ export const requestExeInstallerDownload = async ({
   const responseFilename = parseContentDispositionFilename(
     response.headers?.get?.('content-disposition'),
   )
+  const buildMode = response.headers?.get?.('x-corginite-mode') || ''
   const filename =
     responseFilename || createFallbackExeFilename(name) || DEFAULT_INSTALLER_FILENAME
 
@@ -148,6 +149,9 @@ export const requestExeInstallerDownload = async ({
 
   return {
     filename,
-    message: `Downloaded ${filename}. Run it to install the selected apps.`,
+    message:
+      buildMode === 'preview'
+        ? `Downloaded preview ${filename}. Vercel serves a demo installer here.`
+        : `Downloaded ${filename}. Run it to install the selected apps.`,
   }
 }
