@@ -1,34 +1,21 @@
 # CorgiNite Installer Builder UI
 
-UI-only React prototype for selecting apps and generating one PowerShell
-bootstrap script. The build flow is simulated with a staged progress UI.
+CorgiNite is a UI prototype (React + Vite) and optional Electron shell that helps you select apps from a catalog and generate a PowerShell bootstrap script (.ps1) to install those apps via Winget. The project simulates a staged "build" flow in the UI and produces a Bootstrap installer script — it does not compile native installers by itself.
 
-## Features
-
+Highlights
 - Search and filter app catalogs
 - Quick bundle presets
 - Build summary with estimated package size
 - Output options for architecture, offline cache, and silent installs
+- Generates a PowerShell bootstrap script that uses Winget and falls back to Chocolatey
+- Optional Electron shell and Windows NSIS packaging (electron-builder)
 
-## Run locally
+Quick start (development)
+Prerequisites
+- Node.js (v18+ recommended)
+- npm
+- For testing generated scripts: Windows with Winget (or be ready to allow Chocolatey to be bootstrapped)
 
+Install deps
 ```bash
 npm install
-npm run dev
-```
-
-## Deploying to Vercel
-
-The Vercel deployment uses the static React build plus a preview `/api/build-installer`
-function. That keeps the UI and download flow working in the browser and returns
-the same PowerShell bootstrap script used locally.
-
-For the full install workflow, run the downloaded `.ps1` as Administrator on a
-Windows machine with `winget` available. If `winget` is missing, the script tries
-to bootstrap Chocolatey as a fallback dependency manager and explains the next step.
-Vercel is best for sharing the polished UI and script download.
-
-## Notes
-
-This prototype does not compile real installers. The build flow generates a
-bootstrap script that installs the selected apps from Winget package IDs.
